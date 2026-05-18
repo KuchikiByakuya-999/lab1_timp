@@ -37,25 +37,49 @@ type Block struct {
 var db *sql.DB
 
 func initDB() {
-	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		getEnv("DB_HOST", "localhost"),
-		getEnv("DB_PORT", "5432"),
-		getEnv("DB_USER", "firstlab"),
-		getEnv("DB_PASSWORD", "admin"),
-		getEnv("DB_NAME", "firstlab"),
-	)
-	var err error
-	db, err = sql.Open("postgres", dsn)
-	if err != nil {
-		log.Fatalf("Ошибка подключения к БД: %v", err)
-	}
-	if err = db.Ping(); err != nil {
-		log.Fatalf("БД недоступна: %v", err)
-	}
-	log.Println("Подключение к БД успешно")
-}
+    dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+        getEnv("DBHOST", "localhost"),
+        getEnv("DBPORT", "5432"),
+        getEnv("DBUSER", "firstlab"),
+        getEnv("DBPASSWORD", "admin"),
+        getEnv("DBNAME", "firstlab"),
+    )
+    var err error
+    db, err = sql.Open("postgres", dsn)
+    if err != nil {
+        log.Fatalf("%v", err)
+    }
+    if err = db.Ping(); err != nil {
+        log.Fatalf("%v", err)
+    }
+    log.Println("DB connected")
 
+    // Автоматически создаём таблицы если их нет
+    _, err = db.Exec(`
+        CREATE TABLE IF NOT EXISTS sites (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            url         TEXT NOT NULL,
+            type        TEXT,
+            country     TEXT,
+            description TEXT
+        );
+        CREATE TABLE IF NOT EXISTS blocks (
+            id              SERIAL PRIMARY KEY,
+            site_id         INTEGER REFERENCES sites(id) ON DELETE CASCADE,
+            blocker         TEXT,
+            blocker_country TEXT,
+            reason          TEXT,
+            date            TEXT,
+            status          TEXT,
+            bypass          TEXT
+        );
+    `)
+    if err != nil {
+        log.Fatalf("migration error: %v", err)
+    }
+    log.Println("Tables ready")
+}
 func getEnv(key, fallback string) string {
 	if v, ok := os.LookupEnv(key); ok {
 		return v
