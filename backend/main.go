@@ -243,9 +243,18 @@ func main() {
 	http.HandleFunc("/api/sites/", handleSites)
 	http.HandleFunc("/api/blocks", handleBlocks)
 	http.HandleFunc("/api/blocks/", handleBlocks)
-
-	fs := http.FileServer(http.Dir("./public"))
-	http.Handle("/", fs)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+    if strings.HasPrefix(r.URL.Path, "/api/") {
+        http.NotFound(w, r)
+        return
+    }
+    path := "./public" + r.URL.Path
+    if _, err := os.Stat(path); os.IsNotExist(err) {
+        http.ServeFile(w, r, "./public/index.html")
+        return
+    }
+    http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
+})
 
 	port := getEnv("PORT", "5000")
 	fmt.Printf("Сервер запущен на http://localhost:%s\n", port)
